@@ -16,7 +16,7 @@ class Fusion:
     def __init__(self, pipeline):
         self.pipe = pipeline
 
-    def mean_substraction(self, strategy='zero_mean'):
+    def mean_substraction(self, strategy='substraction_to_zero_mean'):
 
         data_col = self.pipe.ds._get_data_col()
         mean_series = np.zeros((len(self.pipe.ds.data_series), len(data_col)))
@@ -25,13 +25,20 @@ class Fusion:
             mean = ds[data_col].mean().values
             mean_series[idx,:] = mean
 
-        if strategy == 'zero_mean':
+        if strategy == 'substraction_to_zero_mean':
             for idx, ds in enumerate(self.pipe.ds.data_series):
                 ds[data_col] = ds[data_col] - mean_series[idx]
-        elif strategy == 'average_mean':
+        elif strategy == 'division_to_one_mean':
+            for idx, ds in enumerate(self.pipe.ds.data_series):
+                ds[data_col] = ds[data_col]/mean_series[idx]
+        elif strategy == 'substraction_of_average_mean':
             average_mean = mean_series.mean(axis=0)
             for idx, ds in enumerate(self.pipe.ds.data_series):
                 ds[data_col] = ds[data_col] - average_mean
+        elif strategy == 'substraction_to_average_mean':
+            average_mean = mean_series.mean(axis=0)
+            for idx, ds in enumerate(self.pipe.ds.data_series):
+                ds[data_col] = ds[data_col] - (mean_series[idx] - average_mean)
         else:
             raise NotImplementedError()
 
@@ -51,15 +58,19 @@ class DataSource:
                     name=None,
                     data_col=None,
                     markup_col=None,
-                    adv_col=None):
-        self.data_series.append(data)
+                    adv_col=None,
+                    deep_copy=True):
+
+        data_ = data.copy(deep=True) if deep_copy else data
+
+        self.data_series.append(data_)
 
         if name is None:
             name="_default_{}".format(len(self.name_series))
         self.name_series.append(name)
 
         if data_col is None:
-            data_col  = data.columns
+            data_col  = data_.columns
         self.data_col_series.append(data_col)
 
         if markup_col is None:
